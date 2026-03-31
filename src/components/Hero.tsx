@@ -4,6 +4,9 @@ import { ArrowRight } from 'lucide-react';
 import { TABS, PROMPTS, STATS } from '../data/siteData';
 import { generateWithAI } from '../utils/ai';
 import Logo from './Logo';
+import { useAuth } from '../context/AuthContext';
+import { useAppRouter } from '../context/RouteContext';
+import { saveContent, deductCredit } from '../utils/supabase';
 
 export default function Hero() {
   const [activeTab, setActiveTab] = useState('gerar');
@@ -14,17 +17,45 @@ export default function Hero() {
   const [length, setLength] = useState('150 palavras');
   const tabsRef = useRef<HTMLDivElement>(null);
 
+  const { user, profile, refreshProfile } = useAuth();
+  const { navigateTo } = useAppRouter();
+
   const handleHeroGenerate = async () => {
     if (!heroPrompt.trim()) return;
+    
+    if (!user) {
+      setHeroResult('Por favor, faça login para gerar e salvar seu conteúdo.');
+      return;
+    }
+
+    if ((profile?.credits ?? 0) <= 0) {
+      navigateTo('precos');
+      return;
+    }
+
     setHeroLoading(true);
     setHeroResult('');
     try {
-      const result = await generateWithAI(heroPrompt, activeTab, style, length);
-      setHeroResult(result);
+      const { text, wordCount } = await generateWithAI(heroPrompt, activeTab, style, length);
+      setHeroResult(text);
+      setHeroLoading(false);
+      
+      // Cálculo de exaustão (Token-based): 1% da barra a cada 50 palavras
+      const creditsToDeduct = Math.max(1, Math.ceil(wordCount / 50));
+      
+      Promise.all([
+        saveContent(user.id, `Hero: ${heroPrompt.slice(0, 30)}...`, text, activeTab, { style, length }),
+        deductCredit(user.id, creditsToDeduct)
+      ]).then(() => {
+        refreshProfile();
+      }).catch(err => {
+        console.error('Falha ao salvar no banco:', err);
+      });
+
     } catch (e: any) {
       setHeroResult(e.message || 'Erro ao gerar conteúdo.');
+      setHeroLoading(false);
     }
-    setHeroLoading(false);
   };
 
   const scrollTabs = (dir: 'left' | 'right') => {

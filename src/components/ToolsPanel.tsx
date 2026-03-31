@@ -1,53 +1,76 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ArrowRight, Sparkles, AlertCircle } from 'lucide-react';
+import { ArrowRight, Sparkles, AlertCircle, LogIn } from 'lucide-react';
 import { TOOLS } from '../data/siteData';
 import { generateWithAI } from '../utils/ai';
 import { useAuth } from '../context/AuthContext';
+import { useAppRouter } from '../context/RouteContext';
 import { saveContent, deductCredit } from '../utils/supabase';
 
 export default function ToolsPanel() {
   const { user, profile, refreshProfile } = useAuth();
+  const { navigateTo } = useAppRouter();
   const [activeTool, setActiveTool] = useState('ai-text');
   const [toolPrompt, setToolPrompt] = useState('');
+  const [selectedType, setSelectedType] = useState(''); // TIPO de texto (ex: Parágrafo de Introdução)
   const [toolResult, setToolResult] = useState('');
   const [toolLoading, setToolLoading] = useState(false);
   const [style, setStyle] = useState('Casual');
   const [length, setLength] = useState('150 palavras');
+  const [loginRequired, setLoginRequired] = useState(false);
 
   const currentTool = TOOLS.find(t => t.id === activeTool) ?? TOOLS[0];
+
+  // Reset type when tool changes
+  const handleToolChange = (id: string) => {
+    setActiveTool(id);
+    setToolResult('');
+    setToolPrompt('');
+    setSelectedType('');
+  };
 
   const handleToolGenerate = async () => {
     if (!toolPrompt.trim()) return;
     
-    // Check if user is logged in
     if (!user) {
-      setToolResult('Por favor, faça login para gerar conteúdo e salvar automaticamente suas criações.');
+      setLoginRequired(true);
       return;
     }
 
-    // Check credits
     if ((profile?.credits ?? 0) <= 0) {
-      setToolResult('Você não tem créditos suficientes. Por favor, adquira mais créditos na página de preços.');
+      navigateTo('precos');
       return;
     }
 
     setToolLoading(true);
     setToolResult('');
     try {
-      const result = await generateWithAI(toolPrompt, currentTool.id, style, length);
-      setToolResult(result);
+      // Combinar TIPO selecionado + TEMA do usuário de forma inteligente
+      const finalPrompt = selectedType
+        ? `Crie um(a) "${selectedType}" sobre o seguinte tema: ${toolPrompt}`
+        : toolPrompt;
+
+      const { text, wordCount } = await generateWithAI(finalPrompt, currentTool.id, style, length);
+      setToolResult(text);
+      setToolLoading(false); // Libera o usuário da tela de carregamento na hora!
       
-      // Save content and deduct credits in background
       if (user) {
-        await saveContent(user.id, `Geração: ${currentTool.label}`, result, currentTool.id, { style, length });
-        await deductCredit(user.id, 1);
-        await refreshProfile();
+        // Cálculo de exaustão (Token-based): 1% da barra a cada 50 palavras
+        const creditsToDeduct = Math.max(1, Math.ceil(wordCount / 50));
+
+        Promise.all([
+          saveContent(user.id, `${selectedType || currentTool.label}: ${toolPrompt.slice(0, 40)}`, text, currentTool.id, { style, length, type: selectedType }),
+          deductCredit(user.id, creditsToDeduct)
+        ]).then(() => {
+          refreshProfile();
+        }).catch(err => {
+          console.error('Falha no banco:', err);
+        });
       }
     } catch (e: any) {
       setToolResult(e.message || 'Erro ao gerar conteúdo.');
+      setToolLoading(false);
     }
-    setToolLoading(false);
   };
 
   return (
@@ -58,7 +81,7 @@ export default function ToolsPanel() {
           <div className="w-full lg:w-72 shrink-0 border-r border-[#26262a] overflow-y-auto max-h-[600px] p-3 scrollbar-hide">
             <div className="text-xs font-semibold text-gray-500 px-4 py-2 uppercase tracking-widest mb-2">Ferramentas</div>
             {TOOLS.map(tool => (
-              <button key={tool.id} onClick={() => { setActiveTool(tool.id); setToolResult(''); setToolPrompt(''); }}
+              <button key={tool.id} onClick={() => handleToolChange(tool.id)}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left transition-all mb-1 group ${activeTool === tool.id ? 'bg-brand-orange/10 text-white border border-brand-orange/30' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
                 <tool.icon className={`w-5 h-5 shrink-0 ${activeTool === tool.id ? 'text-brand-orange' : 'text-gray-500 group-hover:text-brand-orange'}`} />
                 <span className="text-sm font-medium leading-tight">{tool.label}</span>
@@ -78,22 +101,32 @@ export default function ToolsPanel() {
                 </div>
                 <p className="text-gray-400 text-sm leading-relaxed mb-6">{currentTool.description}</p>
 
-                {/* Tool Suggestions */}
-                <div className="flex flex-wrap gap-2 mb-5">
-                  {currentTool.suggestions.map((s, i) => (
-                    <button key={i} onClick={() => setToolPrompt(s)}
-                      className="text-xs px-3 py-1.5 rounded-full bg-[#0e0e11] border border-[#36363a] text-gray-400 hover:text-white hover:border-brand-orange/40 transition-all">
-                      {s}
-                    </button>
-                  ))}
-                </div>
+                {/* Tool Type Selector — Clique para definir o TIPO/FORMATO do texto */}
+                {currentTool.suggestions.length > 0 && (
+                  <div className="mb-5">
+                    <p className="text-xs text-gray-500 mb-2">Tipo de texto <span className="text-brand-orange">(opcional)</span>:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {currentTool.suggestions.map((s, i) => (
+                        <button key={i}
+                          onClick={() => setSelectedType(selectedType === s ? '' : s)}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                            selectedType === s
+                              ? 'bg-brand-orange/20 border-brand-orange text-brand-orange'
+                              : 'bg-[#0e0e11] border-[#36363a] text-gray-400 hover:text-white hover:border-brand-orange/40'
+                          }`}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Tool Input */}
                 <div className="relative bg-[#0e0e11] border border-[#36363a] rounded-2xl p-4 mb-4 focus-within:border-brand-orange/50 transition-colors">
                   <textarea
                     value={toolPrompt}
                     onChange={e => setToolPrompt(e.target.value)}
-                    placeholder="Descreva o que deseja criar..."
+                    placeholder={selectedType ? `Escreva o TEMA para o "${selectedType}"... (ex: sustentabilidade, liderança)` : 'Descreva o tema ou assunto que deseja criar...'}
                     rows={3}
                     className="w-full bg-transparent text-white placeholder-gray-500 resize-none outline-none text-sm leading-relaxed pr-12"
                   />
@@ -132,11 +165,25 @@ export default function ToolsPanel() {
                 </button>
 
                 <AnimatePresence>
+                  {loginRequired && (
+                    <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="bg-brand-orange/10 border border-brand-orange/40 rounded-2xl p-6 mb-6 flex flex-col items-center text-center">
+                       <LogIn className="w-8 h-8 text-brand-orange mb-3" />
+                       <h3 className="text-white font-bold mb-1">Login Necessário</h3>
+                       <p className="text-gray-400 text-sm mb-4">Faça login para começar a gerar conteúdos e salvar seu histórico.</p>
+                       <button 
+                        onClick={() => navigateTo('login')}
+                        className="bg-brand-orange text-white px-6 py-2 rounded-xl text-sm font-bold hover:bg-brand-orange-light transition-colors"
+                       >
+                         Entrar Agora
+                       </button>
+                    </motion.div>
+                  )}
+
                   {toolResult && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
                       className="bg-[#0e0e11] border border-brand-orange/20 rounded-2xl p-5 mt-4 text-left">
                       <p className="text-gray-300 text-sm leading-relaxed whitespace-pre-wrap mb-4">{toolResult}</p>
-                      <div className="flex justify-end">
+                      <div className="flex justify-end text-balance">
                          <button onClick={() => navigator.clipboard.writeText(toolResult)} className="text-xs text-brand-orange hover:text-white transition-colors">Copiar Resultado</button>
                       </div>
                     </motion.div>

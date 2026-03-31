@@ -3,8 +3,26 @@ import Features from '../components/Features';
 import ToolsPanel from '../components/ToolsPanel';
 import { Sparkles, ArrowRight } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useAppRouter } from '../context/RouteContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function Home() {
+  const { navigateTo } = useAppRouter();
+  const { user } = useAuth();
+
+  const handleStartWriting = () => {
+    if (user) {
+      navigateTo('dashboard');
+    } else {
+      navigateTo('login');
+    }
+  };
+
+  const scrollToTools = () => {
+    const el = document.getElementById('tools-section');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <>
       <Hero />
@@ -21,15 +39,21 @@ export default function Home() {
           <p className="text-gray-400 text-lg mb-8 max-w-2xl mx-auto">
             Escreva qualquer coisa instantaneamente com ferramentas que se adaptam à sua entrada. De e-mails a histórias e citações, cada resultado é contextualizado, estruturado e pronto para usar.
           </p>
-          <button className="inline-flex items-center gap-3 bg-brand-orange hover:bg-brand-orange-light text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-brand-orange/20 active:scale-95">
+          <button 
+            onClick={handleStartWriting}
+            className="inline-flex items-center gap-3 bg-brand-orange hover:bg-brand-orange-light text-white px-8 py-4 rounded-2xl font-bold text-lg transition-all shadow-lg shadow-brand-orange/20 active:scale-95"
+          >
             <Sparkles className="w-5 h-5" />
-            Iniciar Meu Teste Gratuito
+            {user ? 'Acessar Meu Dashboard' : 'Iniciar Meu Teste Gratuito'}
           </button>
         </div>
       </section>
 
-      <Features />
-      <ToolsPanel />
+      <Features onCardClick={scrollToTools} />
+      
+      <div id="tools-section">
+        <ToolsPanel />
+      </div>
 
       {/* ── FOOTER CTA ────────────────────────────────────── */}
       <section className="relative z-10 py-24 px-6 text-center">
@@ -40,8 +64,11 @@ export default function Home() {
           <p className="text-gray-400 text-lg mb-10">
             Junte-se a 500.000+ usuários que já escrevem mais rápido e melhor com nossa plataforma de IA.
           </p>
-          <button className="inline-flex items-center gap-3 bg-brand-orange hover:bg-brand-orange-light text-white px-10 py-5 rounded-2xl font-bold text-lg transition-all shadow-2xl shadow-brand-orange/20 active:scale-95 uppercase tracking-wider">
-            Experimente Grátis
+          <button 
+            onClick={handleStartWriting}
+            className="inline-flex items-center gap-3 bg-brand-orange hover:bg-brand-orange-light text-white px-10 py-5 rounded-2xl font-bold text-lg transition-all shadow-2xl shadow-brand-orange/20 active:scale-95 uppercase tracking-wider"
+          >
+            {user ? 'Ir para o Dashboard' : 'Experimente Grátis'}
             <ArrowRight className="w-6 h-6" />
           </button>
         </div>

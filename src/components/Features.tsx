@@ -1,7 +1,11 @@
 import { motion } from 'motion/react';
 import { FEATURES } from '../data/siteData';
 
-export default function Features() {
+interface FeaturesProps {
+  onCardClick?: () => void;
+}
+
+export default function Features({ onCardClick }: FeaturesProps) {
   return (
     <section id="ferramentas" className="relative z-10 max-w-7xl mx-auto px-6 py-16">
       <h2 className="text-3xl md:text-4xl font-bold text-white text-center mb-4">
@@ -14,6 +18,7 @@ export default function Features() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
         {FEATURES.map((f, i) => (
           <motion.div key={i}
+            onClick={onCardClick}
             initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }} transition={{ delay: i * 0.07 }}
             className={`p-8 rounded-3xl cursor-pointer relative overflow-hidden bg-[#16161a] border transition-all duration-300 hover:-translate-y-1 group ${f.highlight ? 'border-[#3a1f0a] shadow-[0_10px_40px_rgba(249,115,22,0.08)]' : 'border-[#26262a] hover:border-[#36363a]'}`}>

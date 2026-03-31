@@ -8,6 +8,7 @@ import Pricing from './pages/Pricing';
 import Login from './pages/Login';
 import Blog from './pages/Blog';
 import AIChatBot from './components/AIChatBot';
+import Dashboard from './pages/Dashboard';
 
 function AppContent() {
   const { activeRoute } = useAppRouter();
@@ -21,6 +22,7 @@ function AppContent() {
         {activeRoute === 'precos' && <Pricing />}
         {activeRoute === 'login' && <Login />}
         {activeRoute === 'blog' && <Blog />}
+        {activeRoute === 'dashboard' && <Dashboard />}
       </main>
 
       <Footer />

@@ -1,13 +1,23 @@
-import { Mail, Github, LogIn } from 'lucide-react';
-import { motion } from 'motion/react';
 import Logo from '../components/Logo';
 import { supabase } from '../utils/supabase';
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { useAppRouter } from '../context/RouteContext';
+import { motion } from 'motion/react';
+import { Mail, Github, LogIn } from 'lucide-react';
 
 export default function Login() {
+  const { user } = useAuth();
+  const { navigateTo } = useAppRouter();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  useEffect(() => {
+    if (user) {
+      navigateTo('dashboard');
+    }
+  }, [user, navigateTo]);
 
   const handleOAuthLogin = async (provider: 'google' | 'github') => {
     try {
@@ -17,7 +27,13 @@ export default function Login() {
           redirectTo: window.location.origin
         }
       });
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('provider is not enabled')) {
+          setMessage({ type: 'error', text: `O provedor ${provider} não está habilitado no Supabase. Por favor, use o login por E-mail.` });
+        } else {
+          throw error;
+        }
+      }
     } catch (error: any) {
       setMessage({ type: 'error', text: error.message });
     }
@@ -82,8 +98,8 @@ export default function Login() {
         </div>
 
         <form onSubmit={handleEmailLogin}>
-          <div className="mb-10 text-left">
-            <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest ml-4">Endereço de E-mail</label>
+          <div className="mb-8 text-left">
+            <label className="block text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-widest ml-4 px-2 text-balance">Endereço de E-mail</label>
             <div className="relative">
               <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
               <input 
@@ -100,7 +116,7 @@ export default function Login() {
           <button 
             type="submit"
             disabled={loading}
-            className="w-full bg-brand-orange hover:bg-brand-orange-light disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-brand-orange/20 mb-8 active:scale-95 flex items-center justify-center gap-2"
+            className="w-full bg-brand-orange hover:bg-brand-orange-light disabled:opacity-50 disabled:cursor-not-allowed text-white py-4 rounded-3xl font-bold text-sm transition-all shadow-lg shadow-brand-orange/20 mb-6 active:scale-95 flex items-center justify-center gap-2"
           >
             {loading ? 'Enviando...' : (
               <>
@@ -110,6 +126,19 @@ export default function Login() {
             )}
           </button>
         </form>
+
+        <div className="bg-brand-orange/5 border border-brand-orange/10 rounded-[2rem] p-6 mb-8 text-left">
+          <h4 className="text-brand-orange text-xs font-bold uppercase tracking-widest mb-2">💡 Dica de Acesso</h4>
+          <p className="text-gray-400 text-[10px] leading-relaxed mb-4">
+            O login social (Google/GitHub) requer ativação manual no seu painel do Supabase. O método de <b>E-mail Magic Link</b> já está 100% ativo e é a forma mais rápida de acessar suas ferramentas agora!
+          </p>
+          <button 
+            onClick={() => window.open('https://supabase.com/dashboard/project/', '_blank')}
+            className="text-[10px] text-brand-orange font-bold hover:underline"
+          >
+            Como configurar Provedores no Supabase?
+          </button>
+        </div>
 
         <p className="text-gray-500 text-[10px] leading-relaxed max-w-[80%] mx-auto font-medium">
           Ao continuar, você concorda com nossos <a href="#" className="underline hover:text-white transition-colors">Termos de Serviço</a> e <a href="#" className="underline hover:text-white transition-colors">Políticas de Privacidade</a>.
