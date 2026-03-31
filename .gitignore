@@ -1,0 +1,37 @@
+node_modules/
+build/
+dist/
+coverage/
+.DS_Store
+*.log
+.env*
+!.env.example
+
+# Outros
+*.iso
+*.AppImage
+
+# Scraping folders
+alb.reddit.com/
+analytics.google.com/
+api-js.mixpanel.com/
+api.gleap.io/
+api2.amplitude.com/
+bat.bing.com/
+cdn.jsdelivr.net/
+cdn.mxpnl.com/
+code.jquery.com/
+eskritor.com/
+googleads.g.doubleclick.net/
+load.stape.transkriptor.com/
+mc.yandex.ru/
+pixel-config.reddit.com/
+sr-client-cfg.amplitude.com/
+staticfiles.gleap.io/
+www.google.com/
+www.google.com.br/
+www.googletagmanager.com/
+www.redditstatic.com/
+IA Escritor/
+AGENCIA/
+Obsidian-AGENCIA/
